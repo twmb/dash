@@ -1,0 +1,10 @@
+#define NOSPLIT 4
+
+TEXT ·Now(SB), NOSPLIT, $0-8
+	BYTE $0x0f
+	BYTE $0x01
+	BYTE $0xf9
+	SALQ $32, DX
+	ORQ  AX, DX
+	MOVQ DX, now+0(FP)
+	RET
