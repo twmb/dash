@@ -1,4 +1,4 @@
-// Package block provides a fast blocking primitive to wrap around code that
+// package block provides a fast blocking primitive to wrap around code that
 // may fail.
 //
 // Block provides blocking for semantics to surround spinning algorithms. If an
@@ -169,7 +169,8 @@ func (l *lock) Unlock() {
 }
 
 // Prime, called before a function that may fail, returns what you will call
-// Wait with. If you do not call wait, you must call Cancel.
+// Wait with. If you do not call wait, and this call successfully primes the
+// block, you must call Cancel.
 func (b *Block) Prime(last uintptr) (primer uintptr, primed bool) {
 	primer = atomic.LoadUintptr(&b.counter)
 	if primer != last {
@@ -254,6 +255,6 @@ func (b *Block) Signal() {
 		return
 	}
 	atomic.AddUintptr(&b.counter, 1)
-	b.cond.Broadcast()
 	b.lock.WUnlock()
+	b.cond.Broadcast()
 }
