@@ -17,7 +17,7 @@ func (q *Queue) TryEnqueue(ptr unsafe.Pointer) (enqueued bool) {
 	var c *cell
 	pos := atomic.LoadUintptr(&q.enqPos)
 	for {
-		c = (*cell)(unsafe.Pointer(uintptr(q.bufPtr) + (cellSz * (pos & q.mask))))
+		c = &q.cells[pos&q.mask]
 		seq := atomic.LoadUintptr(&c.seq)
 		cmp := int(seq - pos)
 		if cmp == 0 {
@@ -41,7 +41,7 @@ func (q *Queue) TryEnqueue(ptr unsafe.Pointer) (enqueued bool) {
 // TryDequeue dequeues a value from our queue. If the queue is empty, this
 // will return failure.
 func (q *Queue) TryDequeue() (ptr unsafe.Pointer, dequeued bool) {
-	c := (*cell)(unsafe.Pointer(uintptr(q.bufPtr) + (cellSz * (q.deqPos & q.mask))))
+	c := &q.cells[q.deqPos&q.mask]
 	seq := atomic.LoadUintptr(&c.seq)
 	if seq < q.deqPos+1 {
 		return

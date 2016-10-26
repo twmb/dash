@@ -16,7 +16,7 @@ func (q *Queue) TryEnqueue(ptr unsafe.Pointer) (enqueued bool) {
 	pos := atomic.LoadUintptr(&q.enqPos)
 	for {
 		// load the cell at that enqPos,
-		c = (*cell)(unsafe.Pointer(uintptr(q.bufPtr) + (cellSz * (pos & q.mask))))
+		c = &q.cells[pos&q.mask]
 		// load the sequence number in that cell,
 		seq := atomic.LoadUintptr(&c.seq)
 		// and, if the sequence number is (enqPos), we have a spot to
@@ -57,7 +57,7 @@ func (q *Queue) TryDequeue() (ptr unsafe.Pointer, dequeued bool) {
 	pos := atomic.LoadUintptr(&q.deqPos)
 	for {
 		// load the cell at that deqPos,
-		c = (*cell)(unsafe.Pointer(uintptr(q.bufPtr) + (cellSz * (pos & q.mask))))
+		c = &q.cells[pos&q.mask]
 		// load the sequence number in that cell,
 		seq := atomic.LoadUintptr(&c.seq)
 		// and, if the sequence number is (deqPos + 1), we have an

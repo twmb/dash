@@ -14,7 +14,7 @@ import (
 // avoid the necessity of wrapping a heap allocated value in an interface,
 // which also goes on the heap. If the queue is full, this will return failure.
 func (q *Queue) TryEnqueue(ptr unsafe.Pointer) (enqueued bool) {
-	c := (*cell)(unsafe.Pointer(uintptr(q.bufPtr) + (cellSz * (q.enqPos & q.mask))))
+	c := &q.cells[q.enqPos&q.mask]
 	seq := atomic.LoadUintptr(&c.seq)
 	if seq < q.enqPos {
 		return
@@ -28,7 +28,7 @@ func (q *Queue) TryEnqueue(ptr unsafe.Pointer) (enqueued bool) {
 // TryDequeue dequeues a value from our queue. If the queue is empty, this
 // will return failure.
 func (q *Queue) TryDequeue() (ptr unsafe.Pointer, dequeued bool) {
-	c := (*cell)(unsafe.Pointer(uintptr(q.bufPtr) + (cellSz * (q.deqPos & q.mask))))
+	c := &q.cells[q.deqPos&q.mask]
 	seq := atomic.LoadUintptr(&c.seq)
 	if seq < q.deqPos+1 {
 		return

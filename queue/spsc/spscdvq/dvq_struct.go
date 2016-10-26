@@ -4,9 +4,7 @@
 // Package spscdvq provides a concurrent single-producer single-consumer fast
 // queue based off Dmitry Vyukov's mpmc blocking queue.
 //
-// This queue is fast, beating throughput of a go channels with high cores. As
-// there is only one enqueue at a time and one dequeue at a time, this queue is
-// linearizable.
+// This queue is fast, beating throughput of a go channels with high cores.
 //
 // Queue's are forced to a multiplier-of-two size before returning. If
 // enqueueing or dequeueing fails, enqueuers or dequeuers need to backoff
@@ -16,7 +14,6 @@
 package spscdvq
 
 import (
-	"reflect"
 	"unsafe"
 
 	"github.com/twmb/dash/primitive"
@@ -36,7 +33,7 @@ type cell struct {
 type Queue struct {
 	_pad0  [primitive.FalseShare - primitive.UpSz]byte
 	mask   uintptr
-	bufPtr unsafe.Pointer
+	cells  []cell
 	_pad1  [primitive.FalseShare - primitive.UpSz]byte
 	enqPos uintptr
 	_pad2  [primitive.FalseShare - primitive.UpSz]byte
@@ -47,14 +44,14 @@ type Queue struct {
 // New returns a new Queue, with size rounded up to the next power of 2.
 func New(size uint) *Queue {
 	size2 := primitive.Next2(uintptr(size))
-	buf := make([]cell, size2+1)
+	cells := make([]cell, size2+1)
 	for i := uintptr(0); i < size2+1; i++ {
-		buf[i].seq = i - 1
+		cells[i].seq = i - 1
 	}
 
 	q := &Queue{
-		mask:   size2 - 1,
-		bufPtr: unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&buf)).Data + cellSz),
+		mask:  size2 - 1,
+		cells: cells[1:],
 	}
 	return q
 }

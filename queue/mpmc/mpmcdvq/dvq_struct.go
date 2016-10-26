@@ -4,9 +4,8 @@
 // Package mpmcdvq provides a concurrent multi-producer multi-consumer fast
 // queue based off Dmitry Vyukov's mpmc blocking queue.
 //
-// This queue is fast, beating throughput of a go channels with high cores.
-// This queue is not strictly linearizable. If enqueue(a) finishes before
-// enqueue(b), dequeue(b) may happen before dequeue(a).
+// This queue is fast, beating throughput of a go channels with high cores at
+// the expense of extra CPU.
 //
 // Queue's are forced to a multiplier-of-two size before returning. If
 // enqueueing or dequeueing fails, enqueuers or dequeuers need to backoff
@@ -16,7 +15,6 @@
 package mpmcdvq
 
 import (
-	"reflect"
 	"unsafe"
 
 	"github.com/twmb/dash/primitive"
@@ -55,15 +53,9 @@ type Queue struct {
 	_pad0 [primitive.FalseShare - primitive.UpSz]byte
 	// mask is the size of our queue - 1. Because the size of the queue is
 	// forced to be a power of 2, we index into slots via masking.
-	mask uintptr
-	// bufPtr is the .Data pointer of a []cell. We have this as an
-	// unsafe.Pointer because it is actually easier to work with.
-	//   - we have no unnecessary slice bounds checking
-	//   - accessing the exact byte we need and saying it is a cell pointer
-	//     means we do not have to work with copies of cells on access, and
-	//     that we do not have to work with []*cell.
-	bufPtr unsafe.Pointer
-	_pad1  [primitive.FalseShare - primitive.UpSz]byte
+	mask  uintptr
+	cells []cell
+	_pad1 [primitive.FalseShare - primitive.UpSz]byte
 	// padding enqPos to not share cache lines, enqPos tracks the current
 	// enqueueing position.
 	enqPos uintptr
@@ -78,14 +70,14 @@ type Queue struct {
 // New returns a new Queue, with size rounded up to the next power of 2.
 func New(size uint) *Queue {
 	size2 := primitive.Next2(uintptr(size))
-	buf := make([]cell, size2+1) // pad one cell at the start to avoid sharing it
+	cells := make([]cell, size2+1) // pad one cell at the start to avoid sharing it
 	for i := uintptr(0); i < size2+1; i++ {
-		buf[i].seq = i - 1 // remove the pad cell from the sequence number
+		cells[i].seq = i - 1 // remove the pad cell from the sequence number
 	}
 
 	q := &Queue{
-		mask:   size2 - 1,
-		bufPtr: unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&buf)).Data + cellSz),
+		mask:  size2 - 1,
+		cells: cells[1:],
 	}
 	return q
 }
